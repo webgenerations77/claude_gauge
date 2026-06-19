@@ -199,26 +199,10 @@ function renderClaudeUsage() {
   document.getElementById('session-resets').textContent =
     claudeUsageData.sessionResets ? `Resets in ${claudeUsageData.sessionResets}` : 'Resets: --';
 
-  // Show API token totals on session card (today's data)
-  const today = dateStr(new Date());
-  const todayRows = usageData.filter((r) => r.date === today);
-  const todayIn = todayRows.reduce((s, r) => s + (r.inputTokens || 0), 0);
-  const todayOut = todayRows.reduce((s, r) => s + (r.outputTokens || 0), 0);
-  document.getElementById('session-tokens').innerHTML =
-    `API today: ${todayIn.toLocaleString()} in / ${todayOut.toLocaleString()} out`;
-
   drawGauge('weekly-gauge', weeklyPct);
   document.getElementById('weekly-label').textContent = weeklyPct + '%';
   document.getElementById('weekly-resets').textContent =
     claudeUsageData.weeklyResets ? `Resets ${claudeUsageData.weeklyResets}` : 'Resets: --';
-
-  // Show API token totals on weekly card (this week's data)
-  const weekStart = startOfWeek();
-  const weekRows = usageData.filter((r) => r.date >= weekStart);
-  const weekIn = weekRows.reduce((s, r) => s + (r.inputTokens || 0), 0);
-  const weekOut = weekRows.reduce((s, r) => s + (r.outputTokens || 0), 0);
-  document.getElementById('weekly-tokens').innerHTML =
-    `API this week: ${weekIn.toLocaleString()} in / ${weekOut.toLocaleString()} out`;
 
   const spent = claudeUsageData.creditsSpent;
   document.getElementById('credits-spent').textContent =

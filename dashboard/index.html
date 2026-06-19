@@ -20,22 +20,6 @@
         </div>
       </header>
 
-      <!-- Quota Card -->
-      <div class="quota-bar" id="quota-bar">
-        <div class="quota-item">
-          <span class="quota-label">Account Balance</span>
-          <span class="quota-value" id="quota-credits">--</span>
-        </div>
-        <div class="quota-item">
-          <span class="quota-label">Unpaid Balance</span>
-          <span class="quota-value" id="quota-unpaid">--</span>
-        </div>
-        <div class="quota-item">
-          <span class="quota-label">Quota Updated</span>
-          <span class="quota-value" id="quota-updated">--</span>
-        </div>
-      </div>
-
       <!-- Claude.ai Usage -->
       <div class="claude-usage-grid" id="claude-usage">
         <div class="gauge-card">
@@ -45,7 +29,6 @@
             <div class="gauge-label" id="session-label">--%</div>
           </div>
           <div class="gauge-detail" id="session-resets">Resets: --</div>
-          <div class="gauge-tokens" id="session-tokens"></div>
         </div>
         <div class="gauge-card">
           <h3>Weekly Usage</h3>
@@ -54,7 +37,6 @@
             <div class="gauge-label" id="weekly-label">--%</div>
           </div>
           <div class="gauge-detail" id="weekly-resets">Resets: --</div>
-          <div class="gauge-tokens" id="weekly-tokens"></div>
         </div>
         <div class="gauge-card">
           <h3>Credits Spent</h3>
@@ -70,6 +52,20 @@
 
       <!-- API Usage Summary Cards -->
       <h2 class="section-title">API Usage</h2>
+      <div class="quota-bar" id="quota-bar">
+        <div class="quota-item">
+          <span class="quota-label">Account Balance</span>
+          <span class="quota-value" id="quota-credits">--</span>
+        </div>
+        <div class="quota-item">
+          <span class="quota-label">Unpaid Balance</span>
+          <span class="quota-value" id="quota-unpaid">--</span>
+        </div>
+        <div class="quota-item">
+          <span class="quota-label">Quota Updated</span>
+          <span class="quota-value" id="quota-updated">--</span>
+        </div>
+      </div>
       <div class="summary-grid">
         <div class="summary-card">
           <h3>Today</h3>
