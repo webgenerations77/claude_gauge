@@ -36,6 +36,36 @@
         </div>
       </div>
 
+      <!-- Claude.ai Usage -->
+      <div class="claude-usage-grid" id="claude-usage">
+        <div class="gauge-card">
+          <h3>Session Usage</h3>
+          <div class="gauge-container">
+            <canvas id="session-gauge" width="160" height="100"></canvas>
+            <div class="gauge-label" id="session-label">--%</div>
+          </div>
+          <div class="gauge-detail" id="session-resets">Resets: --</div>
+        </div>
+        <div class="gauge-card">
+          <h3>Weekly Usage</h3>
+          <div class="gauge-container">
+            <canvas id="weekly-gauge" width="160" height="100"></canvas>
+            <div class="gauge-label" id="weekly-label">--%</div>
+          </div>
+          <div class="gauge-detail" id="weekly-resets">Resets: --</div>
+        </div>
+        <div class="gauge-card">
+          <h3>Credits Spent</h3>
+          <div class="value" id="credits-spent">--</div>
+          <div class="gauge-detail" id="credits-resets">Resets: --</div>
+        </div>
+        <div class="gauge-card">
+          <h3>Plan</h3>
+          <div class="value" id="claude-plan">--</div>
+          <div class="gauge-detail" id="claude-balance">Balance: --</div>
+        </div>
+      </div>
+
       <!-- Summary Cards -->
       <div class="summary-grid">
         <div class="summary-card">

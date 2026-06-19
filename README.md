@@ -60,6 +60,14 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+    match /claude_usage/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /claude_usage_history/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }
 ```

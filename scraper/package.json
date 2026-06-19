@@ -5,6 +5,8 @@
   "description": "Scrapes Claude Console usage data and pushes to Firestore",
   "scripts": {
     "login": "node auth.js",
+    "login:console": "node auth.js console",
+    "login:claude": "node auth.js claude",
     "scrape": "node scraper.js",
     "debug": "node scraper.js --debug"
   },

@@ -3,17 +3,14 @@ const fs = require('fs');
 const path = require('path');
 
 const SESSION_PATH = path.join(__dirname, 'session.json');
+const CLAUDE_SESSION_PATH = path.join(__dirname, 'session-claude.json');
 const CONSOLE_URL = 'https://platform.claude.com';
+const CLAUDE_URL = 'https://claude.ai';
 
 const LOGIN_URLS = ['/login', '/oauth', '/auth', 'accounts.google', 'clerk.'];
 
-async function authenticate() {
-  console.log('Launching browser for manual login...');
-  console.log(`Navigate to: ${CONSOLE_URL}`);
-  console.log('Log in manually. The browser will close automatically once login is detected.');
-  console.log('If it does not close, navigate to any platform.claude.com page after logging in.\n');
-
-  const browser = await puppeteer.launch({
+async function launchBrowser() {
+  return puppeteer.launch({
     headless: false,
     channel: 'chrome',
     defaultViewport: null,
@@ -25,15 +22,9 @@ async function authenticate() {
       '--no-default-browser-check',
     ],
   });
+}
 
-  const page = (await browser.pages())[0] || await browser.newPage();
-
-  await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
-  });
-
-  await page.goto(CONSOLE_URL, { waitUntil: 'networkidle2' });
-
+async function waitForLogin(page, targetDomain) {
   while (true) {
     await new Promise((r) => setTimeout(r, 2000));
 
@@ -47,23 +38,69 @@ async function authenticate() {
     console.log(`Current URL: ${url}`);
 
     const onLoginPage = LOGIN_URLS.some((s) => url.includes(s));
-    const onConsole =
-      url.startsWith('https://platform.claude.com') ||
-      url.startsWith('https://console.anthropic.com');
-
-    if (!onLoginPage && onConsole) {
+    if (!onLoginPage && url.includes(targetDomain)) {
       await new Promise((r) => setTimeout(r, 3000));
-
-      const cookies = await page.cookies();
-      fs.writeFileSync(SESSION_PATH, JSON.stringify(cookies, null, 2));
-      console.log(`\nSession saved to ${SESSION_PATH}`);
-      console.log(`Cookies captured: ${cookies.length}`);
-      break;
+      return await page.cookies();
     }
+  }
+  return null;
+}
+
+async function authenticate() {
+  const target = process.argv[2];
+
+  if (target === 'claude') {
+    await authClaude();
+  } else if (target === 'console') {
+    await authConsole();
+  } else {
+    await authConsole();
+    console.log('\n--- Now authenticating claude.ai ---\n');
+    await authClaude();
+  }
+}
+
+async function authConsole() {
+  console.log('=== API Console Authentication ===');
+  console.log(`Navigate to: ${CONSOLE_URL}`);
+  console.log('Log in manually. The browser will close once login is detected.\n');
+
+  const browser = await launchBrowser();
+  const page = (await browser.pages())[0] || await browser.newPage();
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  });
+  await page.goto(CONSOLE_URL, { waitUntil: 'networkidle2' });
+
+  const cookies = await waitForLogin(page, 'platform.claude.com');
+  if (cookies) {
+    fs.writeFileSync(SESSION_PATH, JSON.stringify(cookies, null, 2));
+    console.log(`\nConsole session saved (${cookies.length} cookies)`);
   }
 
   await browser.close();
-  console.log('Browser closed. You can now run: npm run scrape');
+}
+
+async function authClaude() {
+  console.log('=== Claude.ai Authentication ===');
+  console.log(`Navigate to: ${CLAUDE_URL}`);
+  console.log('Log in manually. The browser will close once login is detected.\n');
+
+  const browser = await launchBrowser();
+  const page = (await browser.pages())[0] || await browser.newPage();
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  });
+  await page.goto(CLAUDE_URL + '/login', { waitUntil: 'networkidle2' });
+
+  const cookies = await waitForLogin(page, 'claude.ai');
+  if (cookies) {
+    fs.writeFileSync(CLAUDE_SESSION_PATH, JSON.stringify(cookies, null, 2));
+    console.log(`\nClaude.ai session saved (${cookies.length} cookies)`);
+  }
+
+  await browser.close();
+  console.log('Done. You can now run: npm run scrape');
 }
 
 authenticate().catch((err) => {

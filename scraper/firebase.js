@@ -70,4 +70,31 @@ async function upsertQuota(quota) {
     );
 }
 
-module.exports = { getDb, upsertUsageRow, logScrape, upsertQuota };
+async function upsertClaudeUsage(data) {
+  const db = getDb();
+  await db
+    .collection('claude_usage')
+    .doc('latest')
+    .set(
+      {
+        ...data,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+  const today = new Date().toISOString().split('T')[0];
+  await db
+    .collection('claude_usage_history')
+    .doc(today)
+    .set(
+      {
+        ...data,
+        date: today,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+}
+
+module.exports = { getDb, upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage };

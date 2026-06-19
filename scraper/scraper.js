@@ -1,10 +1,12 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const { upsertUsageRow, logScrape, upsertQuota } = require('./firebase');
+const { upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage } = require('./firebase');
 
 const SESSION_PATH = path.join(__dirname, 'session.json');
+const CLAUDE_SESSION_PATH = path.join(__dirname, 'session-claude.json');
 const USAGE_URL = 'https://platform.claude.com/settings/usage';
+const CLAUDE_USAGE_URL = 'https://claude.ai/settings/usage';
 const DEBUG_SCREENSHOT = path.join(__dirname, 'debug-last-run.png');
 const DEBUG_HTML = path.join(__dirname, 'debug-last-run.html');
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
@@ -358,21 +360,140 @@ async function scrape() {
   }
 
   await logScrape({ status: 'success', rowsUpserted: upserted });
-  log(`Done. ${upserted} rows upserted to Firestore.`);
+  log(`API console scrape done. ${upserted} rows upserted.`);
 
   await browser.close();
 }
 
-scrape().catch(async (err) => {
-  log(`Fatal error: ${err.message}`);
-  try {
-    await logScrape({
-      status: 'error',
-      rowsUpserted: 0,
-      errorMessage: err.message,
-    });
-  } catch {
-    // Firebase may not be initialized
+async function scrapeClaude() {
+  if (!fs.existsSync(CLAUDE_SESSION_PATH)) {
+    log('No session-claude.json — skipping claude.ai scrape. Run "npm run login:claude" to set up.');
+    return;
   }
+
+  const cookies = JSON.parse(fs.readFileSync(CLAUDE_SESSION_PATH, 'utf-8'));
+
+  log('=== Scraping claude.ai usage ===');
+  const browser = await puppeteer.launch({
+    headless: false,
+    channel: 'chrome',
+    defaultViewport: { width: 1440, height: 900 },
+    ignoreDefaultArgs: ['--enable-automation'],
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--window-position=10000,10000',
+    ],
+  });
+
+  const page = (await browser.pages())[0] || await browser.newPage();
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  });
+  await page.setCookie(...cookies);
+
+  log(`Navigating to ${CLAUDE_USAGE_URL}...`);
+  await page.goto(CLAUDE_USAGE_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+
+  // Wait for Cloudflare challenge
+  for (let i = 0; i < 10; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const text = await page.evaluate(() => document.body.innerText.substring(0, 300));
+    if (!text.includes('security verification') && !text.includes('Cloudflare')) break;
+    log('Waiting for Cloudflare...');
+  }
+
+  const currentUrl = page.url();
+  if (currentUrl.includes('/login')) {
+    log('Claude.ai session expired — run "npm run login:claude" to re-authenticate.');
+    await browser.close();
+    return;
+  }
+
+  await new Promise((r) => setTimeout(r, 5000));
+
+  const claudeData = await page.evaluate(() => {
+    const text = document.body.innerText;
+    const result = {
+      plan: null,
+      sessionPct: null,
+      sessionResets: null,
+      weeklyPct: null,
+      weeklyResets: null,
+      creditsSpent: null,
+      creditsResets: null,
+      currentBalance: null,
+      monthlySpendLimit: null,
+    };
+
+    const planMatch = text.match(/Pro|Max|Free/);
+    if (planMatch) result.plan = planMatch[0];
+
+    const sessionPctMatch = text.match(/Current session[\s\S]*?(\d+)%\s*used/i);
+    if (sessionPctMatch) result.sessionPct = parseInt(sessionPctMatch[1]);
+
+    const sessionResetMatch = text.match(/Resets?\s+in\s+([\d]+\s*hr?\s*[\d]*\s*min?)/i);
+    if (sessionResetMatch) result.sessionResets = sessionResetMatch[1].trim();
+
+    const weeklyPctMatch = text.match(/Weekly\s+limits[\s\S]*?(\d+)%\s*used/i);
+    if (weeklyPctMatch) result.weeklyPct = parseInt(weeklyPctMatch[1]);
+
+    const weeklyResetMatch = text.match(/Resets?\s+(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[\s\S]*?(\d+:\d+\s*(?:AM|PM))/i);
+    if (weeklyResetMatch) result.weeklyResets = `${weeklyResetMatch[1]} ${weeklyResetMatch[2]}`;
+
+    const spentMatch = text.match(/\$([\d.]+)\s*spent/i);
+    if (spentMatch) result.creditsSpent = parseFloat(spentMatch[1]);
+
+    const creditsResetMatch = text.match(/Resets?\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d+)/i);
+    if (creditsResetMatch) result.creditsResets = `${creditsResetMatch[1]} ${creditsResetMatch[2]}`;
+
+    const balanceMatch = text.match(/\$([\d.]+)\s*\n?\s*Current\s+balance/i);
+    if (!balanceMatch) {
+      const altMatch = text.match(/Current\s+balance[·\s]*([\s\S]*?\$([\d.]+))/i);
+      if (altMatch) result.currentBalance = parseFloat(altMatch[2]);
+    } else {
+      result.currentBalance = parseFloat(balanceMatch[1]);
+    }
+
+    const limitMatch = text.match(/Monthly\s+spend\s+limit[\s\S]*?(Unlimited|\$([\d,.]+))/i);
+    if (limitMatch) {
+      result.monthlySpendLimit = limitMatch[1] === 'Unlimited' ? 'Unlimited' : parseFloat(limitMatch[2]);
+    }
+
+    return result;
+  });
+
+  log(`Claude.ai data: plan=${claudeData.plan}, session=${claudeData.sessionPct}%, weekly=${claudeData.weeklyPct}%, spent=$${claudeData.creditsSpent}, balance=$${claudeData.currentBalance}`);
+
+  try {
+    await upsertClaudeUsage(claudeData);
+    log('Claude.ai usage saved to Firestore.');
+  } catch (err) {
+    log(`Error saving claude.ai usage: ${err.message}`);
+  }
+
+  await browser.close();
+}
+
+async function main() {
+  try {
+    await scrape();
+  } catch (err) {
+    log(`API console scrape error: ${err.message}`);
+    try {
+      await logScrape({ status: 'error', rowsUpserted: 0, errorMessage: err.message });
+    } catch {}
+  }
+
+  try {
+    await scrapeClaude();
+  } catch (err) {
+    log(`Claude.ai scrape error: ${err.message}`);
+  }
+}
+
+main().catch((err) => {
+  log(`Fatal error: ${err.message}`);
   process.exit(1);
 });

@@ -8,6 +8,7 @@ const db = firebase.firestore();
 let usageData = [];
 let scrapeLogData = [];
 let quotaData = null;
+let claudeUsageData = null;
 let selectedRange = 14;
 let sortColumn = 'cost';
 let sortAsc = false;
@@ -132,12 +133,87 @@ async function fetchQuota() {
   }
 }
 
+async function fetchClaudeUsage() {
+  try {
+    const doc = await db.collection('claude_usage').doc('latest').get();
+    claudeUsageData = doc.exists ? doc.data() : null;
+  } catch (err) {
+    console.error('Firestore claude_usage fetch error:', err);
+  }
+}
+
 // ── Status ──
 function setStatus(connected) {
   const dot = document.getElementById('status-dot');
   const text = document.getElementById('status-text');
   dot.className = `status-dot ${connected ? 'connected' : 'disconnected'}`;
   text.textContent = connected ? 'Connected' : 'Error';
+}
+
+// ── Gauge Drawing ──
+function drawGauge(canvasId, pct) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h - 10;
+  const radius = Math.min(cx, cy) - 10;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, Math.PI, 2 * Math.PI, false);
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = '#1e1e1e';
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Value arc
+  if (pct > 0) {
+    const angle = Math.PI + (pct / 100) * Math.PI;
+    let color = '#00D2BE';
+    if (pct >= 90) color = '#EF4444';
+    else if (pct >= 70) color = '#F59E0B';
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, Math.PI, angle, false);
+    ctx.lineWidth = 14;
+    ctx.strokeStyle = color;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+}
+
+// ── Claude.ai Usage ──
+function renderClaudeUsage() {
+  if (!claudeUsageData) return;
+
+  const sessionPct = claudeUsageData.sessionPct || 0;
+  const weeklyPct = claudeUsageData.weeklyPct || 0;
+
+  drawGauge('session-gauge', sessionPct);
+  document.getElementById('session-label').textContent = sessionPct + '%';
+  document.getElementById('session-resets').textContent =
+    claudeUsageData.sessionResets ? `Resets in ${claudeUsageData.sessionResets}` : 'Resets: --';
+
+  drawGauge('weekly-gauge', weeklyPct);
+  document.getElementById('weekly-label').textContent = weeklyPct + '%';
+  document.getElementById('weekly-resets').textContent =
+    claudeUsageData.weeklyResets ? `Resets ${claudeUsageData.weeklyResets}` : 'Resets: --';
+
+  const spent = claudeUsageData.creditsSpent;
+  document.getElementById('credits-spent').textContent =
+    spent !== null && spent !== undefined ? formatCost(spent) : '--';
+  document.getElementById('credits-resets').textContent =
+    claudeUsageData.creditsResets ? `Resets ${claudeUsageData.creditsResets}` : '';
+
+  document.getElementById('claude-plan').textContent = claudeUsageData.plan || '--';
+  const bal = claudeUsageData.currentBalance;
+  document.getElementById('claude-balance').textContent =
+    bal !== null && bal !== undefined ? `Balance: ${formatCost(bal)}` : 'Balance: --';
 }
 
 // ── Quota Bar ──
@@ -442,6 +518,7 @@ function renderFooter() {
 
 // ── Render All ──
 function renderAll() {
+  renderClaudeUsage();
   renderQuota();
   renderSummary();
   renderTokensChart();
@@ -480,7 +557,7 @@ document.querySelectorAll('#model-table th').forEach((th) => {
 
 // ── Init ──
 async function init() {
-  await Promise.all([fetchUsageData(), fetchScrapeLog(), fetchQuota()]);
+  await Promise.all([fetchUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
   renderAll();
 }
 
@@ -488,6 +565,6 @@ init();
 
 // Auto-refresh every 60 seconds
 setInterval(async () => {
-  await Promise.all([fetchUsageData(), fetchScrapeLog(), fetchQuota()]);
+  await Promise.all([fetchUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
   renderAll();
 }, 60000);
