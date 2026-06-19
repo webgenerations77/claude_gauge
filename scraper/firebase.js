@@ -97,6 +97,20 @@ async function upsertClaudeUsage(data) {
     );
 }
 
+async function upsertOpenAIQuota(quota) {
+  const db = getDb();
+  await db
+    .collection('openai_quota')
+    .doc('latest')
+    .set(
+      {
+        ...quota,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+}
+
 async function upsertOpenAIUsageRow(row) {
   const db = getDb();
   const docId = `${row.date}_${row.model}`;
@@ -128,4 +142,4 @@ async function completeScrapeRequests() {
   return pending.size;
 }
 
-module.exports = { getDb, upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage, upsertOpenAIUsageRow, completeScrapeRequests };
+module.exports = { getDb, upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage, upsertOpenAIQuota, upsertOpenAIUsageRow, completeScrapeRequests };

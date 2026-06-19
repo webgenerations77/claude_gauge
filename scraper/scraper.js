@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const { upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage, upsertOpenAIUsageRow, completeScrapeRequests } = require('./firebase');
+const { upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage, upsertOpenAIQuota, upsertOpenAIUsageRow, completeScrapeRequests } = require('./firebase');
 
 const SESSION_PATH = path.join(__dirname, 'session.json');
 const CLAUDE_SESSION_PATH = path.join(__dirname, 'session-claude.json');
@@ -551,6 +551,32 @@ async function scrapeOpenAI() {
   }
 
   await new Promise((r) => setTimeout(r, 5000));
+
+  // Scrape quota/balance from the page
+  log('Extracting OpenAI quota info...');
+  const oaiQuota = await page.evaluate(() => {
+    const body = document.body.innerText;
+    const result = { creditsUsd: null };
+
+    const creditMatch = body.match(/(?:credit|balance)[:\s]*\$?([\d,.]+)/i);
+    if (creditMatch) {
+      result.creditsUsd = parseFloat(creditMatch[1].replace(/,/g, ''));
+    }
+
+    return result;
+  });
+
+  if (oaiQuota.creditsUsd !== null) {
+    log(`OpenAI quota: credits=${oaiQuota.creditsUsd}`);
+    try {
+      await upsertOpenAIQuota(oaiQuota);
+      log('OpenAI quota saved to Firestore.');
+    } catch (err) {
+      log(`Error saving OpenAI quota: ${err.message}`);
+    }
+  } else {
+    log('No OpenAI quota info found on page.');
+  }
 
   if (isDebug) {
     await page.screenshot({ path: path.join(__dirname, 'debug-openai.png'), fullPage: true });

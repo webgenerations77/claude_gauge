@@ -68,6 +68,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+    match /openai_quota/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
     match /openai_usage/{document=**} {
       allow read: if true;
       allow write: if false;

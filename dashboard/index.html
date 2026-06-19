@@ -51,16 +51,6 @@
           </div>
           <div class="gauge-detail" id="weekly-resets">Resets: --</div>
         </div>
-        <div class="gauge-card">
-          <h3>Credits Spent</h3>
-          <div class="value" id="credits-spent">--</div>
-          <div class="gauge-detail" id="credits-resets">Resets: --</div>
-        </div>
-        <div class="gauge-card">
-          <h3>Plan</h3>
-          <div class="value" id="claude-plan">--</div>
-          <div class="gauge-detail" id="claude-balance">Balance: --</div>
-        </div>
       </div>
 
       <!-- Claude API Usage Summary Cards -->
@@ -104,6 +94,16 @@
 
       <!-- OpenAI API Usage -->
       <h2 class="section-title">OpenAI API Usage</h2>
+      <div class="quota-bar" id="oai-quota-bar">
+        <div class="quota-item">
+          <span class="quota-label">Account Balance</span>
+          <span class="quota-value" id="oai-quota-credits">--</span>
+        </div>
+        <div class="quota-item">
+          <span class="quota-label">Quota Updated</span>
+          <span class="quota-value" id="oai-quota-updated">--</span>
+        </div>
+      </div>
       <div class="summary-grid">
         <div class="summary-card">
           <h3>Today</h3>

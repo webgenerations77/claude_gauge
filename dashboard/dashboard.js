@@ -13,6 +13,7 @@ let openaiUsageData = [];
 let scrapeLogData = [];
 let quotaData = null;
 let claudeUsageData = null;
+let openaiQuotaData = null;
 let selectedRange = 14;
 let sortColumn = 'cost';
 let sortAsc = false;
@@ -179,6 +180,15 @@ async function fetchClaudeUsage() {
   }
 }
 
+async function fetchOpenAIQuota() {
+  try {
+    const doc = await db.collection('openai_quota').doc('latest').get();
+    openaiQuotaData = doc.exists ? doc.data() : null;
+  } catch (err) {
+    console.error('Firestore openai_quota fetch error:', err);
+  }
+}
+
 async function fetchOpenAIUsageData() {
   try {
     const snapshot = await db.collection('openai_usage').orderBy('date', 'desc').get();
@@ -250,16 +260,32 @@ function renderClaudeUsage() {
   document.getElementById('weekly-resets').textContent =
     claudeUsageData.weeklyResets ? `Resets ${claudeUsageData.weeklyResets}` : 'Resets: --';
 
-  const spent = claudeUsageData.creditsSpent;
-  document.getElementById('credits-spent').textContent =
-    spent !== null && spent !== undefined ? formatCost(spent) : '--';
-  document.getElementById('credits-resets').textContent =
-    claudeUsageData.creditsResets ? `Resets ${claudeUsageData.creditsResets}` : '';
+}
 
-  document.getElementById('claude-plan').textContent = claudeUsageData.plan || '--';
-  const bal = claudeUsageData.currentBalance;
-  document.getElementById('claude-balance').textContent =
-    bal !== null && bal !== undefined ? `Balance: ${formatCost(bal)}` : 'Balance: --';
+// ── OpenAI Quota ──
+function renderOpenAIQuota() {
+  const creditsEl = document.getElementById('oai-quota-credits');
+  const updatedEl = document.getElementById('oai-quota-updated');
+
+  if (!openaiQuotaData) {
+    creditsEl.textContent = 'N/A';
+    updatedEl.textContent = 'Never';
+    return;
+  }
+
+  if (openaiQuotaData.creditsUsd !== null && openaiQuotaData.creditsUsd !== undefined) {
+    const credits = openaiQuotaData.creditsUsd;
+    creditsEl.textContent = formatCost(Math.abs(credits));
+    creditsEl.className = credits >= 0 ? 'quota-value positive' : 'quota-value negative';
+    if (credits < 0) creditsEl.textContent = '-' + creditsEl.textContent;
+  } else {
+    creditsEl.textContent = 'N/A';
+  }
+
+  if (openaiQuotaData.updatedAt) {
+    const t = new Date(openaiQuotaData.updatedAt.seconds * 1000);
+    updatedEl.textContent = t.toLocaleString();
+  }
 }
 
 // ── OpenAI Summary ──
@@ -646,6 +672,7 @@ function renderAll() {
   renderClaudeUsage();
   renderQuota();
   renderSummary();
+  renderOpenAIQuota();
   renderOpenAISummary();
   renderTokenDetails();
   renderTokensChart();
@@ -718,7 +745,7 @@ document.getElementById('refresh-btn').addEventListener('click', async () => {
   const btn = document.getElementById('refresh-btn');
   btn.disabled = true;
   btn.classList.add('spinning');
-  await Promise.all([fetchUsageData(), fetchOpenAIUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
+  await Promise.all([fetchUsageData(), fetchOpenAIUsageData(), fetchOpenAIQuota(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
   renderAll();
   btn.classList.remove('spinning');
   btn.disabled = false;
@@ -756,7 +783,7 @@ document.getElementById('scrape-btn').addEventListener('click', async () => {
 
 // ── Init ──
 async function init() {
-  await Promise.all([fetchUsageData(), fetchOpenAIUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
+  await Promise.all([fetchUsageData(), fetchOpenAIUsageData(), fetchOpenAIQuota(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
   renderAll();
 }
 
@@ -764,6 +791,6 @@ init();
 
 // Auto-refresh every 60 seconds
 setInterval(async () => {
-  await Promise.all([fetchUsageData(), fetchOpenAIUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
+  await Promise.all([fetchUsageData(), fetchOpenAIUsageData(), fetchOpenAIQuota(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
   renderAll();
 }, 60000);
