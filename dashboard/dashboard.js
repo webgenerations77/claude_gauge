@@ -3,9 +3,13 @@
 // ── Init Firebase ──
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // ── State ──
 let usageData = [];
+let openaiUsageData = [];
 let scrapeLogData = [];
 let quotaData = null;
 let claudeUsageData = null;
@@ -28,6 +32,22 @@ const PRICING = {
   'claude-opus-4-1-20250805': { input: 15, output: 75 },
   'claude-fable-5': { input: 3, output: 15 },
 };
+const OPENAI_PRICING = {
+  'gpt-4o': { input: 2.5, output: 10 },
+  'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'gpt-4-turbo': { input: 10, output: 30 },
+  'gpt-4': { input: 30, output: 60 },
+  'gpt-3.5-turbo': { input: 0.5, output: 1.5 },
+  'o1': { input: 15, output: 60 },
+  'o1-mini': { input: 3, output: 12 },
+  'o1-pro': { input: 150, output: 600 },
+  'o3': { input: 10, output: 40 },
+  'o3-mini': { input: 1.1, output: 4.4 },
+  'o4-mini': { input: 1.1, output: 4.4 },
+  'gpt-4.1': { input: 2, output: 8 },
+  'gpt-4.1-mini': { input: 0.4, output: 1.6 },
+  'gpt-4.1-nano': { input: 0.1, output: 0.4 },
+};
 const DEFAULT_PRICING = { input: 3, output: 15 };
 
 // ── Model colors ──
@@ -42,11 +62,28 @@ const MODEL_COLORS = {
   'claude-opus-4-1-20250805': '#D946EF',
   'claude-fable-5': '#10B981',
 };
+const OPENAI_MODEL_COLORS = {
+  'gpt-4o': '#74AA9C',
+  'gpt-4o-mini': '#2ECC71',
+  'gpt-4-turbo': '#1ABC9C',
+  'gpt-4': '#27AE60',
+  'gpt-3.5-turbo': '#58D68D',
+  'o1': '#3498DB',
+  'o1-mini': '#5DADE2',
+  'o1-pro': '#2980B9',
+  'o3': '#9B59B6',
+  'o3-mini': '#BB8FCE',
+  'o4-mini': '#AF7AC5',
+  'gpt-4.1': '#45B7D1',
+  'gpt-4.1-mini': '#48C9B0',
+  'gpt-4.1-nano': '#82E0AA',
+};
 const FALLBACK_COLORS = ['#6366F1', '#14B8A6', '#A855F7', '#F43F5E'];
 let colorIdx = 0;
 
 function getModelColor(model) {
   if (MODEL_COLORS[model]) return MODEL_COLORS[model];
+  if (OPENAI_MODEL_COLORS[model]) return OPENAI_MODEL_COLORS[model];
   MODEL_COLORS[model] = FALLBACK_COLORS[colorIdx % FALLBACK_COLORS.length];
   colorIdx++;
   return MODEL_COLORS[model];
@@ -55,7 +92,7 @@ function getModelColor(model) {
 // ── Helpers ──
 function estimateCost(row) {
   if (row.costUsd && row.costUsd > 0) return row.costUsd;
-  const rates = PRICING[row.model] || DEFAULT_PRICING;
+  const rates = PRICING[row.model] || OPENAI_PRICING[row.model] || DEFAULT_PRICING;
   return (
     ((row.inputTokens || 0) / 1e6) * rates.input +
     ((row.outputTokens || 0) / 1e6) * rates.output
@@ -142,6 +179,15 @@ async function fetchClaudeUsage() {
   }
 }
 
+async function fetchOpenAIUsageData() {
+  try {
+    const snapshot = await db.collection('openai_usage').orderBy('date', 'desc').get();
+    openaiUsageData = snapshot.docs.map((doc) => doc.data());
+  } catch (err) {
+    console.error('Firestore openai_usage fetch error:', err);
+  }
+}
+
 // ── Status ──
 function setStatus(connected) {
   const dot = document.getElementById('status-dot');
@@ -216,13 +262,44 @@ function renderClaudeUsage() {
     bal !== null && bal !== undefined ? `Balance: ${formatCost(bal)}` : 'Balance: --';
 }
 
+// ── OpenAI Summary ──
+function renderOpenAISummary() {
+  const today = dateStr(new Date());
+  const weekStart = startOfWeek();
+  const monthStart = startOfMonth();
+
+  const periods = [
+    { id: 'oai-today', filter: (r) => r.date === today },
+    { id: 'oai-week', filter: (r) => r.date >= weekStart },
+    { id: 'oai-month', filter: (r) => r.date >= monthStart },
+    { id: 'oai-all', filter: () => true },
+  ];
+
+  for (const p of periods) {
+    const rows = openaiUsageData.filter(p.filter);
+    const inTok = rows.reduce((s, r) => s + (r.inputTokens || 0), 0);
+    const outTok = rows.reduce((s, r) => s + (r.outputTokens || 0), 0);
+    const cost = rows.reduce((s, r) => s + estimateCost(r), 0);
+
+    document.getElementById(`${p.id}-cost`).textContent = formatCost(cost);
+    document.getElementById(`${p.id}-tokens`).textContent =
+      `${formatTokens(inTok)} in / ${formatTokens(outTok)} out`;
+  }
+}
+
+// ── Combined data for charts ──
+function getAllUsageData() {
+  return [...usageData, ...openaiUsageData];
+}
+
 // ── Exact Token Breakdown ──
 function renderTokenDetails() {
   const container = document.getElementById('token-details');
   const monthStart = startOfMonth();
 
-  const monthRows = usageData.filter((r) => r.date >= monthStart);
-  const allRows = usageData;
+  const combined = getAllUsageData();
+  const monthRows = combined.filter((r) => r.date >= monthStart);
+  const allRows = combined;
 
   function sum(rows, field) {
     return rows.reduce((s, r) => s + (r[field] || 0), 0);
@@ -353,7 +430,7 @@ function getChartDefaults() {
 }
 
 function renderTokensChart() {
-  const filtered = filterByDateRange(usageData, selectedRange);
+  const filtered = filterByDateRange(getAllUsageData(), selectedRange);
   const dailyMap = {};
   for (const r of filtered) {
     dailyMap[r.date] = (dailyMap[r.date] || 0) + (r.inputTokens || 0) + (r.outputTokens || 0);
@@ -385,7 +462,7 @@ function renderTokensChart() {
 }
 
 function renderModelChart() {
-  const filtered = filterByDateRange(usageData, selectedRange);
+  const filtered = filterByDateRange(getAllUsageData(), selectedRange);
   const models = [...new Set(filtered.map((r) => r.model))];
   const dateSet = [...new Set(filtered.map((r) => r.date))].sort();
 
@@ -420,7 +497,7 @@ function renderModelChart() {
 }
 
 function renderCostChart() {
-  const filtered = filterByDateRange(usageData, selectedRange);
+  const filtered = filterByDateRange(getAllUsageData(), selectedRange);
   const dailyMap = {};
   for (const r of filtered) {
     dailyMap[r.date] = (dailyMap[r.date] || 0) + estimateCost(r);
@@ -465,7 +542,7 @@ function renderCostChart() {
 
 // ── Model Breakdown Table ──
 function renderModelTable() {
-  const filtered = filterByDateRange(usageData, selectedRange);
+  const filtered = filterByDateRange(getAllUsageData(), selectedRange);
   const modelMap = {};
   let totalTokens = 0;
 
@@ -569,6 +646,7 @@ function renderAll() {
   renderClaudeUsage();
   renderQuota();
   renderSummary();
+  renderOpenAISummary();
   renderTokenDetails();
   renderTokensChart();
   renderModelChart();
@@ -604,9 +682,81 @@ document.querySelectorAll('#model-table th').forEach((th) => {
   });
 });
 
+// ── Auth ──
+auth.onAuthStateChanged((user) => {
+  const signInBtn = document.getElementById('sign-in-btn');
+  const userMenu = document.getElementById('user-menu');
+  const scrapeBtn = document.getElementById('scrape-btn');
+
+  if (user) {
+    signInBtn.style.display = 'none';
+    userMenu.style.display = 'flex';
+    document.getElementById('user-avatar').src = user.photoURL || '';
+    document.getElementById('user-email').textContent = user.email;
+    scrapeBtn.disabled = false;
+  } else {
+    signInBtn.style.display = '';
+    userMenu.style.display = 'none';
+    scrapeBtn.disabled = true;
+  }
+});
+
+document.getElementById('sign-in-btn').addEventListener('click', () => {
+  auth.signInWithPopup(googleProvider);
+});
+
+document.getElementById('switch-btn').addEventListener('click', () => {
+  auth.signInWithPopup(googleProvider);
+});
+
+document.getElementById('sign-out-btn').addEventListener('click', () => {
+  auth.signOut();
+});
+
+// ── Refresh Button ──
+document.getElementById('refresh-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  await Promise.all([fetchUsageData(), fetchOpenAIUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
+  renderAll();
+  btn.classList.remove('spinning');
+  btn.disabled = false;
+});
+
+// ── Request Scrape ──
+document.getElementById('scrape-btn').addEventListener('click', async () => {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const btn = document.getElementById('scrape-btn');
+  btn.disabled = true;
+  btn.textContent = '▶ Requesting...';
+
+  try {
+    await db.collection('scrape_requests').add({
+      requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      requestedBy: user.email,
+      status: 'pending',
+    });
+    btn.textContent = '✓ Requested';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '▶ Scrape';
+    }, 3000);
+  } catch (err) {
+    console.error('Error requesting scrape:', err);
+    btn.textContent = '✗ Error';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '▶ Scrape';
+    }, 3000);
+  }
+});
+
 // ── Init ──
 async function init() {
-  await Promise.all([fetchUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
+  await Promise.all([fetchUsageData(), fetchOpenAIUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
   renderAll();
 }
 
@@ -614,6 +764,6 @@ init();
 
 // Auto-refresh every 60 seconds
 setInterval(async () => {
-  await Promise.all([fetchUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
+  await Promise.all([fetchUsageData(), fetchOpenAIUsageData(), fetchScrapeLog(), fetchQuota(), fetchClaudeUsage()]);
   renderAll();
 }, 60000);

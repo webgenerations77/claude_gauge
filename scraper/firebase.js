@@ -97,4 +97,35 @@ async function upsertClaudeUsage(data) {
     );
 }
 
-module.exports = { getDb, upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage };
+async function upsertOpenAIUsageRow(row) {
+  const db = getDb();
+  const docId = `${row.date}_${row.model}`;
+  await db
+    .collection('openai_usage')
+    .doc(docId)
+    .set(
+      {
+        ...row,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  return docId;
+}
+
+async function completeScrapeRequests() {
+  const db = getDb();
+  const pending = await db
+    .collection('scrape_requests')
+    .where('status', '==', 'pending')
+    .get();
+  for (const doc of pending.docs) {
+    await doc.ref.update({
+      status: 'completed',
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  return pending.size;
+}
+
+module.exports = { getDb, upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage, upsertOpenAIUsageRow, completeScrapeRequests };

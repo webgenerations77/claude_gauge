@@ -1,12 +1,14 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const { upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage } = require('./firebase');
+const { upsertUsageRow, logScrape, upsertQuota, upsertClaudeUsage, upsertOpenAIUsageRow, completeScrapeRequests } = require('./firebase');
 
 const SESSION_PATH = path.join(__dirname, 'session.json');
 const CLAUDE_SESSION_PATH = path.join(__dirname, 'session-claude.json');
+const OPENAI_SESSION_PATH = path.join(__dirname, 'session-openai.json');
 const USAGE_URL = 'https://platform.claude.com/settings/usage';
 const CLAUDE_USAGE_URL = 'https://claude.ai/settings/usage';
+const OPENAI_USAGE_URL = 'https://platform.openai.com/usage';
 const DEBUG_SCREENSHOT = path.join(__dirname, 'debug-last-run.png');
 const DEBUG_HTML = path.join(__dirname, 'debug-last-run.html');
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
@@ -476,6 +478,145 @@ async function scrapeClaude() {
   await browser.close();
 }
 
+function parseOpenAICSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+
+  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const rows = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map((v) => v.trim());
+    const obj = {};
+    headers.forEach((h, idx) => {
+      obj[h] = values[idx] || '';
+    });
+
+    const dateVal = obj.date || obj.timestamp || Object.values(obj)[0] || '';
+    const dateMatch = dateVal.match(/\d{4}-\d{2}-\d{2}/);
+    const model = (obj.model || obj.snapshot_id || obj.model_version || 'unknown').trim().toLowerCase();
+
+    rows.push({
+      date: dateMatch ? dateMatch[0] : new Date().toISOString().split('T')[0],
+      model,
+      inputTokens: safeNum(obj.n_context_tokens_total || obj.input_tokens || obj.context_tokens || '0'),
+      outputTokens: safeNum(obj.n_generated_tokens_total || obj.output_tokens || obj.generated_tokens || '0'),
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
+      costUsd: safeCost(obj.cost_in_major || obj.cost || obj.cost_usd || ''),
+      requests: safeNum(obj.num_model_requests || obj.requests || '0'),
+    });
+  }
+
+  return rows;
+}
+
+async function scrapeOpenAI() {
+  if (!fs.existsSync(OPENAI_SESSION_PATH)) {
+    log('No session-openai.json — skipping OpenAI scrape. Run "npm run login:openai" to set up.');
+    return;
+  }
+
+  const cookies = JSON.parse(fs.readFileSync(OPENAI_SESSION_PATH, 'utf-8'));
+
+  log('=== Scraping OpenAI usage ===');
+  const browser = await puppeteer.launch({
+    headless: isDebug ? false : 'new',
+    channel: 'chrome',
+    defaultViewport: { width: 1440, height: 900 },
+    ignoreDefaultArgs: ['--enable-automation'],
+    args: ['--disable-blink-features=AutomationControlled'],
+  });
+
+  const page = await browser.newPage();
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  });
+  await page.setCookie(...cookies);
+
+  const client = await page.createCDPSession();
+  await client.send('Page.setDownloadBehavior', {
+    behavior: 'allow',
+    downloadPath: DOWNLOAD_DIR,
+  });
+
+  log(`Navigating to ${OPENAI_USAGE_URL}...`);
+  await page.goto(OPENAI_USAGE_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+
+  const currentUrl = page.url();
+  if (currentUrl.includes('/login') || currentUrl.includes('/auth')) {
+    log('OpenAI session expired — run "npm run login:openai" to re-authenticate.');
+    await browser.close();
+    return;
+  }
+
+  await new Promise((r) => setTimeout(r, 5000));
+
+  if (isDebug) {
+    await page.screenshot({ path: path.join(__dirname, 'debug-openai.png'), fullPage: true });
+    log('Debug screenshot saved to debug-openai.png');
+  }
+
+  // Clear downloads
+  for (const f of fs.readdirSync(DOWNLOAD_DIR)) {
+    fs.unlinkSync(path.join(DOWNLOAD_DIR, f));
+  }
+
+  // Find and click export/download button
+  log('Looking for export button...');
+  let downloadClicked = false;
+  const buttons = await page.$$('button, a');
+  for (const btn of buttons) {
+    const text = await btn.evaluate((el) => el.textContent.trim().toLowerCase());
+    const ariaLabel = await btn.evaluate((el) => (el.getAttribute('aria-label') || '').toLowerCase());
+    const title = await btn.evaluate((el) => (el.getAttribute('title') || '').toLowerCase());
+    if (
+      text.includes('export') ||
+      text.includes('download') ||
+      ariaLabel.includes('export') ||
+      ariaLabel.includes('download') ||
+      title.includes('export') ||
+      title.includes('download')
+    ) {
+      await btn.click();
+      await new Promise((r) => setTimeout(r, 3000));
+      downloadClicked = true;
+      log('Clicked export button');
+      break;
+    }
+  }
+
+  const usageRows = [];
+
+  if (downloadClicked) {
+    const files = fs.readdirSync(DOWNLOAD_DIR);
+    const csvFile = files.find((f) => f.endsWith('.csv'));
+    if (csvFile) {
+      const csvText = fs.readFileSync(path.join(DOWNLOAD_DIR, csvFile), 'utf-8');
+      const rows = parseOpenAICSV(csvText);
+      usageRows.push(...rows);
+      log(`Parsed ${rows.length} rows from OpenAI CSV`);
+    } else {
+      log('No CSV file found after clicking export.');
+    }
+  } else {
+    log('Could not find export button on OpenAI usage page.');
+  }
+
+  let upserted = 0;
+  for (const row of usageRows) {
+    try {
+      await upsertOpenAIUsageRow(row);
+      upserted++;
+    } catch (err) {
+      log(`Error upserting OpenAI row: ${err.message}`);
+    }
+  }
+
+  log(`OpenAI scrape done. ${upserted} rows upserted.`);
+  await browser.close();
+}
+
 async function main() {
   try {
     await scrape();
@@ -490,6 +631,19 @@ async function main() {
     await scrapeClaude();
   } catch (err) {
     log(`Claude.ai scrape error: ${err.message}`);
+  }
+
+  try {
+    await scrapeOpenAI();
+  } catch (err) {
+    log(`OpenAI scrape error: ${err.message}`);
+  }
+
+  try {
+    const completed = await completeScrapeRequests();
+    if (completed > 0) log(`Completed ${completed} pending scrape request(s).`);
+  } catch (err) {
+    log(`Error completing scrape requests: ${err.message}`);
   }
 }
 

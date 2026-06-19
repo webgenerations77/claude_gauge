@@ -68,6 +68,14 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+    match /openai_usage/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /scrape_requests/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
   }
 }
 ```
@@ -95,7 +103,14 @@ FIREBASE_SERVICE_ACCOUNT_PATH=./service-account.json
 npm run login
 ```
 
-A browser window opens. Log in to [platform.claude.com](https://platform.claude.com) manually. Cookies are saved to `session.json` (gitignored). All subsequent scrapes run headless.
+A browser window opens for each platform. Log in manually. Cookies are saved to session files (gitignored). All subsequent scrapes run headless.
+
+To authenticate individual platforms:
+```bash
+npm run login:console   # Claude API Console (platform.claude.com)
+npm run login:claude    # Claude.ai (claude.ai)
+npm run login:openai    # OpenAI Platform (platform.openai.com)
+```
 
 ### Test a Scrape
 

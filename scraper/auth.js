@@ -4,8 +4,10 @@ const path = require('path');
 
 const SESSION_PATH = path.join(__dirname, 'session.json');
 const CLAUDE_SESSION_PATH = path.join(__dirname, 'session-claude.json');
+const OPENAI_SESSION_PATH = path.join(__dirname, 'session-openai.json');
 const CONSOLE_URL = 'https://platform.claude.com';
 const CLAUDE_URL = 'https://claude.ai';
+const OPENAI_URL = 'https://platform.openai.com';
 
 const LOGIN_URLS = ['/login', '/oauth', '/auth', 'accounts.google', 'clerk.'];
 
@@ -46,6 +48,28 @@ async function waitForLogin(page, targetDomain) {
   return null;
 }
 
+async function authOpenAI() {
+  console.log('=== OpenAI Platform Authentication ===');
+  console.log(`Navigate to: ${OPENAI_URL}`);
+  console.log('Log in manually. The browser will close once login is detected.\n');
+
+  const browser = await launchBrowser();
+  const page = (await browser.pages())[0] || await browser.newPage();
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  });
+  await page.goto(OPENAI_URL + '/login', { waitUntil: 'networkidle2' });
+
+  const cookies = await waitForLogin(page, 'platform.openai.com');
+  if (cookies) {
+    fs.writeFileSync(OPENAI_SESSION_PATH, JSON.stringify(cookies, null, 2));
+    console.log(`\nOpenAI session saved (${cookies.length} cookies)`);
+  }
+
+  await browser.close();
+  console.log('Done. You can now run: npm run scrape');
+}
+
 async function authenticate() {
   const target = process.argv[2];
 
@@ -53,10 +77,14 @@ async function authenticate() {
     await authClaude();
   } else if (target === 'console') {
     await authConsole();
+  } else if (target === 'openai') {
+    await authOpenAI();
   } else {
     await authConsole();
     console.log('\n--- Now authenticating claude.ai ---\n');
     await authClaude();
+    console.log('\n--- Now authenticating OpenAI ---\n');
+    await authOpenAI();
   }
 }
 

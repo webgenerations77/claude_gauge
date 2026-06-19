@@ -7,6 +7,7 @@
     "login": "node auth.js",
     "login:console": "node auth.js console",
     "login:claude": "node auth.js claude",
+    "login:openai": "node auth.js openai",
     "scrape": "node scraper.js",
     "debug": "node scraper.js --debug"
   },

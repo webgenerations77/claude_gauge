@@ -11,6 +11,19 @@
       <!-- Header -->
       <header>
         <h1>Claude Usage Monitor</h1>
+        <div class="header-actions">
+          <button class="header-btn" id="refresh-btn" title="Refresh data">↻</button>
+          <button class="header-btn" id="scrape-btn" title="Request manual scrape" disabled>▶ Scrape</button>
+          <div id="auth-section">
+            <button class="header-btn google-btn" id="sign-in-btn">Sign in with Google</button>
+            <div class="user-menu" id="user-menu" style="display:none">
+              <img id="user-avatar" class="avatar" alt="" />
+              <span id="user-email" class="user-email"></span>
+              <button class="header-btn small" id="switch-btn">Switch</button>
+              <button class="header-btn small" id="sign-out-btn">Sign Out</button>
+            </div>
+          </div>
+        </div>
         <div class="header-meta">
           <span id="last-updated">Loading...</span>
           <span>
@@ -50,8 +63,8 @@
         </div>
       </div>
 
-      <!-- API Usage Summary Cards -->
-      <h2 class="section-title">API Usage</h2>
+      <!-- Claude API Usage Summary Cards -->
+      <h2 class="section-title">Claude API Usage</h2>
       <div class="quota-bar" id="quota-bar">
         <div class="quota-item">
           <span class="quota-label">Account Balance</span>
@@ -86,6 +99,31 @@
           <h3>All Time</h3>
           <div class="value" id="all-cost">$0.00</div>
           <div class="detail" id="all-tokens">0 in / 0 out</div>
+        </div>
+      </div>
+
+      <!-- OpenAI API Usage -->
+      <h2 class="section-title">OpenAI API Usage</h2>
+      <div class="summary-grid">
+        <div class="summary-card">
+          <h3>Today</h3>
+          <div class="value" id="oai-today-cost">$0.00</div>
+          <div class="detail" id="oai-today-tokens">0 in / 0 out</div>
+        </div>
+        <div class="summary-card">
+          <h3>This Week</h3>
+          <div class="value" id="oai-week-cost">$0.00</div>
+          <div class="detail" id="oai-week-tokens">0 in / 0 out</div>
+        </div>
+        <div class="summary-card">
+          <h3>This Month</h3>
+          <div class="value" id="oai-month-cost">$0.00</div>
+          <div class="detail" id="oai-month-tokens">0 in / 0 out</div>
+        </div>
+        <div class="summary-card">
+          <h3>All Time</h3>
+          <div class="value" id="oai-all-cost">$0.00</div>
+          <div class="detail" id="oai-all-tokens">0 in / 0 out</div>
         </div>
       </div>
 
@@ -165,6 +203,7 @@
 
     <!-- Firebase SDK (v9 compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
     <!-- Chart.js -->
