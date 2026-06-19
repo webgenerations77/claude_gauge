@@ -216,6 +216,54 @@ function renderClaudeUsage() {
     bal !== null && bal !== undefined ? `Balance: ${formatCost(bal)}` : 'Balance: --';
 }
 
+// ── Exact Token Breakdown ──
+function renderTokenDetails() {
+  const container = document.getElementById('token-details');
+  const monthStart = startOfMonth();
+
+  const monthRows = usageData.filter((r) => r.date >= monthStart);
+  const allRows = usageData;
+
+  function sum(rows, field) {
+    return rows.reduce((s, r) => s + (r[field] || 0), 0);
+  }
+
+  function exact(n) {
+    return n.toLocaleString();
+  }
+
+  const categories = [
+    { label: 'Input Tokens', field: 'inputTokens' },
+    { label: 'Output Tokens', field: 'outputTokens' },
+    { label: 'Cache Creation', field: 'cacheCreationTokens' },
+    { label: 'Cache Read', field: 'cacheReadTokens' },
+  ];
+
+  const monthTotal = sum(monthRows, 'inputTokens') + sum(monthRows, 'outputTokens');
+  const allTotal = sum(allRows, 'inputTokens') + sum(allRows, 'outputTokens');
+
+  container.innerHTML =
+    `<div class="token-detail-row header">
+      <span>Category</span>
+      <span>This Month</span>
+      <span>All Time</span>
+    </div>` +
+    categories
+      .map(
+        (c) => `<div class="token-detail-row">
+        <span>${c.label}</span>
+        <span>${exact(sum(monthRows, c.field))}</span>
+        <span>${exact(sum(allRows, c.field))}</span>
+      </div>`
+      )
+      .join('') +
+    `<div class="token-detail-row total">
+      <span>Total (In + Out)</span>
+      <span>${exact(monthTotal)}</span>
+      <span>${exact(allTotal)}</span>
+    </div>`;
+}
+
 // ── Quota Bar ──
 function renderQuota() {
   const creditsEl = document.getElementById('quota-credits');
@@ -521,6 +569,7 @@ function renderAll() {
   renderClaudeUsage();
   renderQuota();
   renderSummary();
+  renderTokenDetails();
   renderTokensChart();
   renderModelChart();
   renderCostChart();
