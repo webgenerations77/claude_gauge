@@ -407,13 +407,39 @@ async function scrapeClaude() {
   }
 
   const currentUrl = page.url();
+  log(`Landed on: ${currentUrl}`);
   if (currentUrl.includes('/login')) {
     log('Claude.ai session expired — run "npm run login:claude" to re-authenticate.');
     await browser.close();
     return;
   }
 
+  // If we didn't land on the usage page, click the Usage link in the sidebar
+  if (!currentUrl.includes('/usage')) {
+    log('Not on usage page, looking for Usage link...');
+    try {
+      const links = await page.$$('a');
+      for (const link of links) {
+        const text = await link.evaluate((el) => el.textContent.trim());
+        const href = await link.evaluate((el) => el.getAttribute('href') || '');
+        if (text === 'Usage' || href.includes('/usage')) {
+          await link.click();
+          await new Promise((r) => setTimeout(r, 5000));
+          log(`Navigated to usage via sidebar: ${page.url()}`);
+          break;
+        }
+      }
+    } catch (err) {
+      log(`Could not navigate to usage tab: ${err.message}`);
+    }
+  }
+
   await new Promise((r) => setTimeout(r, 5000));
+
+  if (isDebug) {
+    await page.screenshot({ path: path.join(__dirname, 'debug-claude-usage.png'), fullPage: true });
+    log('Claude.ai debug screenshot saved.');
+  }
 
   const claudeData = await page.evaluate(() => {
     const text = document.body.innerText;
