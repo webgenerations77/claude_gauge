@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claude Usage Monitor</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header>
+        <h1>Claude Usage Monitor</h1>
+        <div class="header-meta">
+          <span id="last-updated">Loading...</span>
+          <span>
+            <span id="status-dot" class="status-dot disconnected"></span>
+            <span id="status-text">Connecting</span>
+          </span>
+        </div>
+      </header>
+
+      <!-- Quota Card -->
+      <div class="quota-bar" id="quota-bar">
+        <div class="quota-item">
+          <span class="quota-label">Account Balance</span>
+          <span class="quota-value" id="quota-credits">--</span>
+        </div>
+        <div class="quota-item">
+          <span class="quota-label">Unpaid Balance</span>
+          <span class="quota-value" id="quota-unpaid">--</span>
+        </div>
+        <div class="quota-item">
+          <span class="quota-label">Quota Updated</span>
+          <span class="quota-value" id="quota-updated">--</span>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <h3>Today</h3>
+          <div class="value" id="today-cost">$0.00</div>
+          <div class="detail" id="today-tokens">0 in / 0 out</div>
+        </div>
+        <div class="summary-card">
+          <h3>This Week</h3>
+          <div class="value" id="week-cost">$0.00</div>
+          <div class="detail" id="week-tokens">0 in / 0 out</div>
+        </div>
+        <div class="summary-card">
+          <h3>This Month</h3>
+          <div class="value" id="month-cost">$0.00</div>
+          <div class="detail" id="month-tokens">0 in / 0 out</div>
+        </div>
+        <div class="summary-card">
+          <h3>All Time</h3>
+          <div class="value" id="all-cost">$0.00</div>
+          <div class="detail" id="all-tokens">0 in / 0 out</div>
+        </div>
+      </div>
+
+      <!-- Date Range Toggle -->
+      <div class="range-toggle">
+        <button class="range-btn" data-range="7">7d</button>
+        <button class="range-btn active" data-range="14">14d</button>
+        <button class="range-btn" data-range="30">30d</button>
+        <button class="range-btn" data-range="90">90d</button>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Daily Total Tokens</h3>
+          <div class="chart-container">
+            <canvas id="tokens-chart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>Token Breakdown by Model</h3>
+          <div class="chart-container">
+            <canvas id="model-chart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>Daily Cost Trend</h3>
+          <div class="chart-container">
+            <canvas id="cost-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Model Breakdown Table -->
+      <div class="table-card">
+        <h3>Model Breakdown</h3>
+        <table id="model-table">
+          <thead>
+            <tr>
+              <th data-sort="model">Model <span class="sort-arrow">&#9650;</span></th>
+              <th data-sort="inputTokens">Input Tokens <span class="sort-arrow">&#9650;</span></th>
+              <th data-sort="outputTokens">Output Tokens <span class="sort-arrow">&#9650;</span></th>
+              <th data-sort="cost">Est. Cost <span class="sort-arrow">&#9650;</span></th>
+              <th data-sort="pct">% of Total <span class="sort-arrow">&#9650;</span></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Scrape Log -->
+      <div class="log-card">
+        <h3>Scrape Log</h3>
+        <div id="scrape-log">
+          <div class="loading"><div class="spinner"></div><br />Loading logs...</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <footer>
+        <span id="footer-last-scrape">Last scraped: --</span>
+        <span id="footer-next-scrape">Next scrape: ~--</span>
+      </footer>
+    </div>
+
+    <!-- Firebase SDK (v9 compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+    <!-- App -->
+    <script src="firebase-config.js"></script>
+    <script src="dashboard.js"></script>
+  </body>
+</html>

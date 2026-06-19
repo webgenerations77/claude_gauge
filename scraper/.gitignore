@@ -1,0 +1,8 @@
+node_modules/
+.env
+session.json
+service-account.json
+debug-last-run.png
+debug-last-run.html
+logs/*.log
+downloads/
