@@ -218,4 +218,3 @@ claude-usage-monitor/
 | status | string | `success` / `error` |
 | rowsUpserted | number | `14` |
 | errorMessage | string/null | `null` |
->>>>>>> 7e7f3ec (Initial commit: Claude Console usage monitor)
