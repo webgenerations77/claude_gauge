@@ -53,77 +53,84 @@
         </div>
       </div>
 
-      <!-- Claude API Usage Summary Cards -->
-      <h2 class="section-title">Claude API Usage</h2>
-      <div class="quota-bar" id="quota-bar">
-        <div class="quota-item">
-          <span class="quota-label">Account Balance</span>
-          <span class="quota-value" id="quota-credits">--</span>
+      <!-- API Usage Columns -->
+      <div class="api-columns">
+        <!-- Claude API Usage -->
+        <div class="api-column">
+          <h2 class="section-title">Claude API Usage</h2>
+          <div class="quota-bar" id="quota-bar">
+            <div class="quota-item">
+              <span class="quota-label">Balance</span>
+              <span class="quota-value" id="quota-credits">--</span>
+            </div>
+            <div class="quota-item">
+              <span class="quota-label">Unpaid</span>
+              <span class="quota-value" id="quota-unpaid">--</span>
+            </div>
+            <div class="quota-item">
+              <span class="quota-label">Updated</span>
+              <span class="quota-value" id="quota-updated">--</span>
+            </div>
+          </div>
+          <div class="summary-grid compact">
+            <div class="summary-card">
+              <h3>Today</h3>
+              <div class="value" id="today-cost">$0.00</div>
+              <div class="detail" id="today-tokens">0 in / 0 out</div>
+            </div>
+            <div class="summary-card">
+              <h3>This Week</h3>
+              <div class="value" id="week-cost">$0.00</div>
+              <div class="detail" id="week-tokens">0 in / 0 out</div>
+            </div>
+            <div class="summary-card">
+              <h3>This Month</h3>
+              <div class="value" id="month-cost">$0.00</div>
+              <div class="detail" id="month-tokens">0 in / 0 out</div>
+            </div>
+            <div class="summary-card">
+              <h3>All Time</h3>
+              <div class="value" id="all-cost">$0.00</div>
+              <div class="detail" id="all-tokens">0 in / 0 out</div>
+            </div>
+          </div>
         </div>
-        <div class="quota-item">
-          <span class="quota-label">Unpaid Balance</span>
-          <span class="quota-value" id="quota-unpaid">--</span>
-        </div>
-        <div class="quota-item">
-          <span class="quota-label">Quota Updated</span>
-          <span class="quota-value" id="quota-updated">--</span>
-        </div>
-      </div>
-      <div class="summary-grid">
-        <div class="summary-card">
-          <h3>Today</h3>
-          <div class="value" id="today-cost">$0.00</div>
-          <div class="detail" id="today-tokens">0 in / 0 out</div>
-        </div>
-        <div class="summary-card">
-          <h3>This Week</h3>
-          <div class="value" id="week-cost">$0.00</div>
-          <div class="detail" id="week-tokens">0 in / 0 out</div>
-        </div>
-        <div class="summary-card">
-          <h3>This Month</h3>
-          <div class="value" id="month-cost">$0.00</div>
-          <div class="detail" id="month-tokens">0 in / 0 out</div>
-        </div>
-        <div class="summary-card">
-          <h3>All Time</h3>
-          <div class="value" id="all-cost">$0.00</div>
-          <div class="detail" id="all-tokens">0 in / 0 out</div>
-        </div>
-      </div>
 
-      <!-- OpenAI API Usage -->
-      <h2 class="section-title">OpenAI API Usage</h2>
-      <div class="quota-bar" id="oai-quota-bar">
-        <div class="quota-item">
-          <span class="quota-label">Account Balance</span>
-          <span class="quota-value" id="oai-quota-credits">--</span>
-        </div>
-        <div class="quota-item">
-          <span class="quota-label">Quota Updated</span>
-          <span class="quota-value" id="oai-quota-updated">--</span>
-        </div>
-      </div>
-      <div class="summary-grid">
-        <div class="summary-card">
-          <h3>Today</h3>
-          <div class="value" id="oai-today-cost">$0.00</div>
-          <div class="detail" id="oai-today-tokens">0 in / 0 out</div>
-        </div>
-        <div class="summary-card">
-          <h3>This Week</h3>
-          <div class="value" id="oai-week-cost">$0.00</div>
-          <div class="detail" id="oai-week-tokens">0 in / 0 out</div>
-        </div>
-        <div class="summary-card">
-          <h3>This Month</h3>
-          <div class="value" id="oai-month-cost">$0.00</div>
-          <div class="detail" id="oai-month-tokens">0 in / 0 out</div>
-        </div>
-        <div class="summary-card">
-          <h3>All Time</h3>
-          <div class="value" id="oai-all-cost">$0.00</div>
-          <div class="detail" id="oai-all-tokens">0 in / 0 out</div>
+        <!-- OpenAI API Usage -->
+        <div class="api-column">
+          <h2 class="section-title">OpenAI API Usage</h2>
+          <div class="quota-bar" id="oai-quota-bar">
+            <div class="quota-item">
+              <span class="quota-label">Balance</span>
+              <span class="quota-value" id="oai-quota-credits">--</span>
+            </div>
+            <div class="quota-item">
+              <span class="quota-label">Updated</span>
+              <span class="quota-value" id="oai-quota-updated">--</span>
+            </div>
+          </div>
+          <div class="summary-grid compact">
+            <div class="summary-card">
+              <h3>Today</h3>
+              <div class="value" id="oai-today-cost">$0.00</div>
+              <div class="detail" id="oai-today-tokens">0 in / 0 out</div>
+            </div>
+            <div class="summary-card">
+              <h3>This Week</h3>
+              <div class="value" id="oai-week-cost">$0.00</div>
+              <div class="detail" id="oai-week-tokens">0 in / 0 out</div>
+            </div>
+            <div class="summary-card">
+              <h3>This Month</h3>
+              <div class="value" id="oai-month-cost">$0.00</div>
+              <div class="detail" id="oai-month-tokens">0 in / 0 out</div>
+            </div>
+            <div class="summary-card">
+              <h3>All Time</h3>
+              <div class="value" id="oai-all-cost">$0.00</div>
+              <div class="detail" id="oai-all-tokens">0 in / 0 out</div>
+            </div>
+          </div>
         </div>
       </div>
 

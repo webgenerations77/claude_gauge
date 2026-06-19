@@ -307,6 +307,34 @@ header h1 {
   text-align: right;
 }
 
+/* API Columns Layout */
+.api-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.api-column .quota-bar {
+  padding: 12px 16px;
+}
+
+.api-column .section-title {
+  margin-bottom: 12px;
+}
+
+.summary-grid.compact {
+  grid-template-columns: 1fr 1fr;
+}
+
+.summary-grid.compact .summary-card {
+  padding: 14px;
+}
+
+.summary-grid.compact .value {
+  font-size: 1.3rem;
+}
+
 /* Section Titles */
 .section-title {
   font-size: 1rem;
@@ -586,6 +614,10 @@ footer {
 
   .user-email {
     display: none;
+  }
+
+  .api-columns {
+    grid-template-columns: 1fr;
   }
 
   .summary-grid {
